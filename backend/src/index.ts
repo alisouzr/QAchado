@@ -1,27 +1,41 @@
 import express from 'express';
 import cors from 'cors';
-import { prisma } from './lib/prisma.js';
+import authRoutes from './routes/auth.routes.js';
+import { authenticateJWT } from './middlewares/auth.middleware.js';
+import { authorizeRoles, checkProjectAccess } from './middlewares/rbac.middleware.js';
+import { Role } from '@prisma/client';
 
 const app = express();
+
+// Middlewares Globais
 app.use(cors());
 app.use(express.json());
 
-// Exemplo de Middleware de RBAC para validação de acesso dos Devs
-// QAs possuem acesso global; DEVs necessitam validação na tabela project_devs
-app.get('/projects/:id/vulnerabilities', async (req, res) => {
-  const { id: projectId } = req.params;
-  const { userId, role } = req.headers; // Simulação simples vinda de um token JWT decodificado
+// 1. Rotas Públicas de Autenticação
+app.use('/api/auth', authRoutes);
 
-  if (role === 'DEV') {
-    const hasAccess = await prisma.projectDev.findUnique({
-      where: { projectId_userId: { projectId, userId: String(userId) } }
-    });
-    if (!hasAccess) return res.status(403).json({ error: "Acesso negado a este projeto." });
+// 2. Rotas Protegidas de Projetos e Vulnerabilidades (Seu endpoint antigo refatorado com RBAC real)
+app.get(
+  '/api/projects/:projectId/vulnerabilities',
+  authenticateJWT,                         // Garante que está logado via JWT
+  authorizeRoles(Role.ADMIN, Role.QA, Role.DEV), // Permite a entrada dessas roles
+  checkProjectAccess,                      // Bloqueia DEVs se não estiverem alocados no projeto
+  async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      
+      // Busca as vulnerabilidades usando o Prisma Client
+      const { prisma } = await import('./lib/prisma.js');
+      const vulnerabilities = await prisma.vulnerability.findMany({ 
+        where: { projectId } 
+      });
+      
+      return res.json(vulnerabilities);
+    } catch (error) {
+      return res.status(500).json({ error: 'Erro ao buscar vulnerabilidades.' });
+    }
   }
-
-  const vulnerabilities = await prisma.vulnerability.findMany({ where: { projectId } });
-  return res.json(vulnerabilities);
-});
+);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Security Management API rodando na porta ${PORT}`));
+app.listen(PORT, () => console.log(`[SERVER] Security Management API rodando na porta ${PORT}`));
