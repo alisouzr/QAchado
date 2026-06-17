@@ -13,7 +13,15 @@ class ApiTests(unittest.TestCase):
 
         self.assertEqual(status, 200)
         self.assertEqual(headers["Content-Type"], "application/json; charset=utf-8")
+        self.assertEqual(headers["Access-Control-Allow-Origin"], "*")
         self.assertEqual(json.loads(body.decode("utf-8")), {"status": "ok"})
+
+    def test_options_route_allows_cors(self) -> None:
+        status, headers, body = api.handle_request("OPTIONS", "/ai/summarize")
+
+        self.assertEqual(status, 204)
+        self.assertEqual(headers["Access-Control-Allow-Origin"], "*")
+        self.assertEqual(body, b"")
 
     def test_summarize_route(self) -> None:
         with patch.object(api.ai_service, "summarize", return_value="Resumo gerado") as mocked:

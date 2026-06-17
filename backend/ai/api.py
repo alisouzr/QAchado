@@ -15,8 +15,21 @@ def _json_response(status: HTTPStatus, payload: dict[str, Any]) -> tuple[int, di
     headers = {
         "Content-Type": "application/json; charset=utf-8",
         "Content-Length": str(len(body)),
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
     }
     return status.value, headers, body
+
+
+def _empty_response(status: HTTPStatus) -> tuple[int, dict[str, str], bytes]:
+    headers = {
+        "Content-Length": "0",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+    }
+    return status.value, headers, b""
 
 
 def _error(status: HTTPStatus, message: str) -> tuple[int, dict[str, str], bytes]:
@@ -40,6 +53,9 @@ def handle_request(method: str, path: str, body: bytes = b"") -> tuple[int, dict
 
     if method == "GET" and parsed_path == "/health":
         return _json_response(HTTPStatus.OK, {"status": "ok"})
+
+    if method == "OPTIONS":
+        return _empty_response(HTTPStatus.NO_CONTENT)
 
     if method != "POST":
         return _error(HTTPStatus.METHOD_NOT_ALLOWED, "Método não permitido.")
@@ -105,6 +121,10 @@ class AIRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         status, headers, body = handle_request("GET", self.path)
+        self._write(status, headers, body)
+
+    def do_OPTIONS(self) -> None:  # noqa: N802
+        status, headers, body = handle_request("OPTIONS", self.path)
         self._write(status, headers, body)
 
     def do_POST(self) -> None:  # noqa: N802
