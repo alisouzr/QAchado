@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.routes.js';
 import { authenticateJWT } from './middlewares/auth.middleware.js';
 import { authorizeRoles, checkProjectAccess } from './middlewares/rbac.middleware.js';
 import { Role } from '@prisma/client';
+import vulnerabilityRoutes from './routes/vulnerability.routes.js';
 
 const app = express();
 
@@ -13,7 +14,7 @@ app.use(express.json());
 
 // 1. Rotas Públicas de Autenticação
 app.use('/api/auth', authRoutes);
-
+app.use('/api/vulnerabilities', vulnerabilityRoutes);
 // 2. Rotas Protegidas de Projetos e Vulnerabilidades (Seu endpoint antigo refatorado com RBAC real)
 app.get(
   '/api/projects/:projectId/vulnerabilities',

@@ -36,7 +36,7 @@ model User {
   role         Role         @default(DEV)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-
+  assignedVulnerabilities Vulnerability[] @relation("AssignedTo")
   // Relacionamentos
   projects        ProjectDev[]    // Mapeamento N:M explícito para Devs atribuídos a Projetos
   vulnerabilities Vulnerability[] @relation("ReportedBy")
@@ -80,7 +80,8 @@ model Vulnerability {
   severity       Severity
   recommendation String   @db.Text
   status         Status   @default(OPEN)
-  
+  assignedToId   String?   // ID do Dev encarregado da correção
+  assignedTo     User?     @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
   // Mapeamentos de Padrões/Identificadores de Segurança
   cve            String?   // Ex: CVE-2021-34527
   cwe            String?   // Ex: CWE-79
