@@ -1,0 +1,180 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  QA
+  DEV
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Status {
+  OPEN
+  IN_PROGRESS
+  REMEDIATED
+  FALSE_POSITIVE
+  ACCEPTED_RISK
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  role         Role         @default(DEV)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relacionamentos
+  projects        ProjectDev[]    // Mapeamento N:M explícito para Devs atribuídos a Projetos
+  vulnerabilities Vulnerability[] @relation("ReportedBy")
+  comments        Comment[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  devs            ProjectDev[] // Usuários DEV que possuem acesso (RBAC)
+  vulnerabilities Vulnerability[]
+
+  @@map("projects")
+}
+
+// Tabela intermediária explícita para o relacionamento N:M de Projetos e Devs
+model ProjectDev {
+  projectId  String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@map("project_devs")
+}
+
+model Vulnerability {
+  id             String   @id @default(uuid())
+  title          String
+  description    String   @db.Text
+  severity       Severity
+  recommendation String   @db.Text
+  status         Status   @default(OPEN)
+  
+  // Mapeamentos de Padrões/Identificadores de Segurança
+  cve            String?   // Ex: CVE-2021-34527
+  cwe            String?   // Ex: CWE-79
+  owaspTop10     String?   // Ex: A01:2021-Broken Access Control
+  
+  projectId      String
+  reportedById   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  project    Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reportedBy User                    @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: Restrict)
+  comments   Comment[]
+  attachments Attachment[]
+  tags       VulnerabilitiesOnTags[]
+
+  // Índices para performance nas consultas de listagem e filtros de dashboard
+  @@index([projectId])
+  @@index([status])
+  @@index([severity])
+  @@map("vulnerabilities")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  vulnerabilities VulnerabilitiesOnTags[]
+
+  @@map("tags")
+}
+
+// Tabela intermediária explícita para o relacionamento N:M de Vulnerabilidades e Tags
+model VulnerabilitiesOnTags {
+  vulnerabilityId String
+  tagId           String
+  assignedAt      DateTime @default(now())
+
+  vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  tag           Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([vulnerabilityId, tagId])
+  @@map("vulnerability_tags")
+}
+
+model Comment {
+  id              String        @id @default(uuid())
+  content         String        @db.Text
+  vulnerabilityId String
+  userId          String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relacionamentos
+  vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([vulnerabilityId])
+  @@map("comments")
+}
+
+model Attachment {
+  id              String        @id @default(uuid())
+  fileName        String
+  fileUrl         String        
+  fileType        String
+  fileSize        Int
+  vulnerabilityId String
+  createdAt       DateTime      @default(now())
+
+  // Relacionamentos
+  vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+
+  @@index([vulnerabilityId])
+  @@map("attachments")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  // Nullable caso seja uma ação automatizada do sistema ou pré-autenticação
+  action    String   // Ex: "VULNERABILITY_UPDATE", "USER_ROLE_CHANGE"
+  target    String   // Nome do model afetado (ex: "Vulnerability")
+  targetId  String?  // ID do registro modificado
+  details   String?  @db.Text // Diferencial de payload (Old State vs New State) em formato JSON String
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
