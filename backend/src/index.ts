@@ -22,7 +22,7 @@ app.get(
   checkProjectAccess,                      // Bloqueia DEVs se não estiverem alocados no projeto
   async (req, res) => {
     try {
-      const { projectId } = req.params;
+      const projectId = req.params.projectId as string;
       
       // Busca as vulnerabilidades usando o Prisma Client
       const { prisma } = await import('./lib/prisma.js');
