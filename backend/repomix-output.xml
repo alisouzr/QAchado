@@ -45,8 +45,14 @@ package.json
 prisma/migrations/20260617002502_init/migration.sql
 prisma/migrations/migration_lock.toml
 prisma/schema.prisma
+src/@types/express.d.ts
+src/config/jwt.ts
+src/controllers/auth.controller.ts
 src/index.ts
 src/lib/prisma.ts
+src/middlewares/auth.middleware.ts
+src/middlewares/rbac.middleware.ts
+src/routes/auth.routes.ts
 tsconfig.json
 </directory_structure>
 
@@ -68,7 +74,7 @@ node_modules
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -77,16 +83,20 @@ node_modules
   "type": "module",
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.9.3",
     "prisma": "^6.19.3",
-    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }
 }
@@ -432,39 +442,263 @@ model AuditLog {
 }
 </file>
 
+<file path="src/@types/express.d.ts">
+import { Role } from '@prisma/client';
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+        email: string;
+        role: Role;
+      };
+    }
+  }
+}
+</file>
+
+<file path="src/config/jwt.ts">
+import dotenv from 'dotenv';
+dotenv.config();
+
+export const JWT_CONFIG = {
+  secret: process.env.JWT_SECRET || 'fallback-super-secret-key-change-in-prod',
+  expiresIn: '8h',
+};
+</file>
+
+<file path="src/controllers/auth.controller.ts">
+import type { Request, Response } from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma.js';
+import { JWT_CONFIG } from '../config/jwt.js';
+
+export const login = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
+  }
+
+  try {
+    // Busca usuário incluindo a role
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciais inválidas.' });
+    }
+
+    // Valida o hash da senha armazenada com bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      // Criação de Audit Log para tentativas falhas (Segurança/Compliance)
+      await prisma.auditLog.create({
+        data: {
+          action: 'LOGIN_FAILED',
+          target: 'User',
+          targetId: user.id,
+          details: `Tentativa falha de login para o email: ${email}`,
+        }
+      });
+      return res.status(401).json({ error: 'Credenciais inválidas.' });
+    }
+
+    // Geração do Token JWT com Payload adequado para o RBAC
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      },
+      JWT_CONFIG.secret,
+      { expiresIn: JWT_CONFIG.expiresIn }
+    );
+
+    // Criação de Audit Log de sucesso
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'LOGIN_SUCCESS',
+        target: 'User',
+        targetId: user.id,
+      }
+    });
+
+    // Retorna o token e dados básicos de perfil (nunca retorne a senha)
+    return res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Erro no login:', error);
+    return res.status(500).json({ error: 'Erro interno do servidor durante a autenticação.' });
+  }
+};
+</file>
+
 <file path="src/index.ts">
 import express from 'express';
 import cors from 'cors';
-import { prisma } from './lib/prisma.js';
+import authRoutes from './routes/auth.routes.js';
+import { authenticateJWT } from './middlewares/auth.middleware.js';
+import { authorizeRoles, checkProjectAccess } from './middlewares/rbac.middleware.js';
+import { Role } from '@prisma/client';
 
 const app = express();
+
+// Middlewares Globais
 app.use(cors());
 app.use(express.json());
 
-// Exemplo de Middleware de RBAC para validação de acesso dos Devs
-// QAs possuem acesso global; DEVs necessitam validação na tabela project_devs
-app.get('/projects/:id/vulnerabilities', async (req, res) => {
-  const { id: projectId } = req.params;
-  const { userId, role } = req.headers; // Simulação simples vinda de um token JWT decodificado
+// 1. Rotas Públicas de Autenticação
+app.use('/api/auth', authRoutes);
 
-  if (role === 'DEV') {
-    const hasAccess = await prisma.projectDev.findUnique({
-      where: { projectId_userId: { projectId, userId: String(userId) } }
-    });
-    if (!hasAccess) return res.status(403).json({ error: "Acesso negado a este projeto." });
+// 2. Rotas Protegidas de Projetos e Vulnerabilidades (Seu endpoint antigo refatorado com RBAC real)
+app.get(
+  '/api/projects/:projectId/vulnerabilities',
+  authenticateJWT,                         // Garante que está logado via JWT
+  authorizeRoles(Role.ADMIN, Role.QA, Role.DEV), // Permite a entrada dessas roles
+  checkProjectAccess,                      // Bloqueia DEVs se não estiverem alocados no projeto
+  async (req, res) => {
+    try {
+      const projectId = req.params.projectId as string;
+      
+      // Busca as vulnerabilidades usando o Prisma Client
+      const { prisma } = await import('./lib/prisma.js');
+      const vulnerabilities = await prisma.vulnerability.findMany({ 
+        where: { projectId } 
+      });
+      
+      return res.json(vulnerabilities);
+    } catch (error) {
+      return res.status(500).json({ error: 'Erro ao buscar vulnerabilidades.' });
+    }
   }
-
-  const vulnerabilities = await prisma.vulnerability.findMany({ where: { projectId } });
-  return res.json(vulnerabilities);
-});
+);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Security Management API rodando na porta ${PORT}`));
+app.listen(PORT, () => console.log(`[SERVER] Security Management API rodando na porta ${PORT}`));
 </file>
 
 <file path="src/lib/prisma.ts">
 import { PrismaClient } from '@prisma/client';
 export const prisma = new PrismaClient();
+</file>
+
+<file path="src/middlewares/auth.middleware.ts">
+import type { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { JWT_CONFIG } from '../config/jwt.js';
+import { Role } from '@prisma/client';
+
+interface JwtPayload {
+  id: string;
+  email: string;
+  role: Role;
+}
+
+export const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token de autenticação não fornecido ou inválido.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, JWT_CONFIG.secret) as JwtPayload;
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+    };
+    return next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Token inválido ou expirado.' });
+  }
+};
+</file>
+
+<file path="src/middlewares/rbac.middleware.ts">
+import type { Request, Response, NextFunction } from 'express';
+import { Role } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
+
+// 1. Valida se a Role do usuário está na lista de permissões estáticas da rota
+export const authorizeRoles = (...allowedRoles: Role[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Usuário não autenticado.' });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Acesso negado: privilégios insuficientes.' });
+    }
+
+    return next();
+  };
+};
+
+// 2. Middleware dinâmico para validação granular do acesso de DEV a projetos específicos
+export const checkProjectAccess = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Usuário não autenticado.' });
+  }
+
+  const { id: userId, role } = req.user;
+  
+  // Regra de Negócio: Admins e QAs têm acesso global irrestrito
+  if (role === Role.ADMIN || role === Role.QA) {
+    return next();
+  }
+
+  // O ID do projeto pode vir dos parâmetros da URL (:projectId ou :id) ou do corpo da requisição
+  const projectId = req.params.projectId || req.params.id || req.body.projectId;
+
+  if (!projectId) {
+    return res.status(400).json({ error: 'Identificador do projeto não mapeado na requisição.' });
+  }
+
+  try {
+    // Verifica se o DEV está explicitamente associado à tabela pivot do projeto
+    const membership = await prisma.projectDev.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Acesso negado: Você não está alocado a este projeto.' });
+    }
+
+    return next();
+  } catch (error) {
+    return res.status(500).json({ error: 'Erro interno ao validar permissões do projeto.' });
+  }
+};
+</file>
+
+<file path="src/routes/auth.routes.ts">
+import { Router } from 'express';
+import { login } from '../controllers/auth.controller.js';
+
+const router = Router();
+
+router.post('/login', login);
+
+export default router;
 </file>
 
 <file path="tsconfig.json">
