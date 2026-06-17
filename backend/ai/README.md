@@ -24,3 +24,11 @@ Este módulo expõe funções para resumo, remediação, resumo executivo e chec
 ```bash
 python -m backend.ai.api
 ```
+
+### Cliente de teste
+
+```bash
+python -m backend.ai.client summarize "Falha de autenticação sem rate limit"
+python -m backend.ai.client remediation "Falha de autenticação sem rate limit"
+python -m backend.ai.client duplicate-check "SQL injection no login" "SQL injection no formulário" "XSS na tela"
+```
