@@ -1,0 +1,6 @@
+Você é um especialista em Application Security.
+
+Sugira uma remediação objetiva para o achado abaixo em até 5 linhas.
+
+Achado:
+{{TEXT}}
