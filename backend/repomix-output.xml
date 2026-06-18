@@ -48,11 +48,19 @@ prisma/schema.prisma
 src/@types/express.d.ts
 src/config/jwt.ts
 src/controllers/auth.controller.ts
+<<<<<<< HEAD
+src/controllers/vulnerability.controller.ts
+=======
+>>>>>>> 193732668d426b5c256b29c842f764a1dac835cf
 src/index.ts
 src/lib/prisma.ts
 src/middlewares/auth.middleware.ts
 src/middlewares/rbac.middleware.ts
 src/routes/auth.routes.ts
+<<<<<<< HEAD
+src/routes/vulnerability.routes.ts
+=======
+>>>>>>> 193732668d426b5c256b29c842f764a1dac835cf
 tsconfig.json
 </directory_structure>
 
@@ -298,7 +306,7 @@ model User {
   role         Role         @default(DEV)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-
+  assignedVulnerabilities Vulnerability[] @relation("AssignedTo")
   // Relacionamentos
   projects        ProjectDev[]    // Mapeamento N:M explícito para Devs atribuídos a Projetos
   vulnerabilities Vulnerability[] @relation("ReportedBy")
@@ -342,7 +350,8 @@ model Vulnerability {
   severity       Severity
   recommendation String   @db.Text
   status         Status   @default(OPEN)
-  
+  assignedToId   String?   // ID do Dev encarregado da correção
+  assignedTo     User?     @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
   // Mapeamentos de Padrões/Identificadores de Segurança
   cve            String?   // Ex: CVE-2021-34527
   cwe            String?   // Ex: CWE-79
@@ -544,6 +553,230 @@ export const login = async (req: Request, res: Response) => {
 };
 </file>
 
+<<<<<<< HEAD
+<file path="src/controllers/vulnerability.controller.ts">
+import type { Request, Response } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { Severity, Status, Role } from '@prisma/client';
+
+// 1. CRIAR VULNERABILIDADE
+export const createVulnerability = async (req: Request, res: Response) => {
+  const { title, description, severity, recommendation, projectId, cve, cwe, owaspTop10, tagIds } = req.body;
+  const reporterId = req.user!.id;
+
+  if (!title || !description || !severity || !recommendation || !projectId) {
+    return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+  }
+
+  try {
+    const vulnerability = await prisma.vulnerability.create({
+      data: {
+        title,
+        description,
+        severity: severity as Severity,
+        recommendation,
+        projectId,
+        reportedById: reporterId,
+        cve,
+        cwe,
+        owaspTop10,
+        // Cria os vínculos N:M na tabela intermediária se houver tags
+        tags: tagIds && Array.isArray(tagIds) ? {
+          create: tagIds.map((tagId: string) => ({ tagId }))
+        } : undefined
+      },
+      include: { tags: { include: { tag: true } } }
+    });
+
+    // Log de Auditoria
+    await prisma.auditLog.create({
+      data: {
+        userId: reporterId,
+        action: 'VULNERABILITY_CREATE',
+        target: 'Vulnerability',
+        targetId: vulnerability.id,
+        details: `Vulnerabilidade "${title}" reportada no projeto ${projectId}.`
+      }
+    });
+
+    return res.status(201).json(vulnerability);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Erro ao registrar vulnerabilidade.' });
+  }
+};
+
+// 2. LISTAR VULNERABILIDADES COM FILTROS AVANÇADOS E ISOLAMENTO DE DEV
+export const getVulnerabilities = async (req: Request, res: Response) => {
+  const { status, severity, projectId, tagId, assignedToId } = queryParamsFix(req.query);
+  const { id: userId, role } = req.user!;
+
+  // Construção do objeto de filtros dinâmicos do Prisma (Where)
+  const whereClause: any = {};
+
+  if (status) whereClause.status = status as Status;
+  if (severity) whereClause.severity = severity as Severity;
+  if (projectId) whereClause.projectId = projectId;
+  if (assignedToId) whereClause.assignedToId = assignedToId;
+  
+  // Filtro por Tags (Relacionamento N:M)
+  if (tagId) {
+    whereClause.tags = {
+      some: { tagId: tagId }
+    };
+  }
+
+  // BARREIRA DO RBAC: Se for DEV, ele só pode ver registros dos seus projetos atribuídos
+  if (role === Role.DEV) {
+    const userProjects = await prisma.projectDev.findMany({
+      where: { userId },
+      select: { projectId: true }
+    });
+    const allowedProjectIds = userProjects.map(p => p.projectId);
+
+    if (projectId && !allowedProjectIds.includes(projectId)) {
+      return res.status(403).json({ error: 'Acesso negado: Você não possui acesso a este projeto.' });
+    }
+
+    // Injeta a restrição global de escopo caso ele não tenha filtrado por um projeto específico
+    whereClause.projectId = { in: allowedProjectIds };
+  }
+
+  try {
+    const vulnerabilities = await prisma.vulnerability.findMany({
+      where: whereClause,
+      include: {
+        project: { select: { id: true, name: true } },
+        reportedBy: { select: { id: true, name: true, email: true } },
+        tags: { include: { tag: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return res.json(vulnerabilities);
+  } catch (error) {
+    return res.status(500).json({ error: 'Erro ao buscar listagem de vulnerabilidades.' });
+  }
+};
+
+export const updateVulnerability = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, assignedToId, severity, title, description, recommendation } = req.body;
+  const { id: userId, role } = req.user!;
+
+  // Garante que o ID da URL seja tratado como string única
+  const vulnerabilityId = id as string;
+
+  try {
+    // Busca o registro atual para validar escopo do DEV
+    const currentVuln = await prisma.vulnerability.findUnique({ 
+      where: { id: vulnerabilityId } 
+    });
+    
+    if (!currentVuln) {
+      return res.status(404).json({ error: 'Vulnerabilidade não encontrada.' });
+    }
+
+    // BARREIRA DO RBAC: Se for DEV, valida se o achado pertence a um de seus projetos
+    if (role === Role.DEV) {
+      const access = await prisma.projectDev.findUnique({
+        where: { projectId_userId: { projectId: currentVuln.projectId, userId } }
+      });
+      if (!access) {
+        return res.status(403).json({ error: 'Acesso negado: Este achado pertence a um projeto fora do seu escopo.' });
+      }
+    }
+
+    // Tratamento estrito de tipos para evitar o erro 'string | string[]' no Prisma
+    const updatedStatus = typeof status === 'string' ? (status as Status) : undefined;
+    const updatedSeverity = typeof severity === 'string' ? (severity as Severity) : undefined;
+    const updatedTitle = typeof title === 'string' ? (title as string) : undefined;
+    const updatedDescription = typeof description === 'string' ? (description as string) : undefined;
+    const updatedRecommendation = typeof recommendation === 'string' ? (recommendation as string) : undefined;
+    
+    // Resolve o erro do 'assignedToId' limpando a possibilidade de array
+    let updatedAssignedToId: string | null | undefined = undefined;
+    if (typeof assignedToId === 'string') {
+      updatedAssignedToId = assignedToId as string;
+    } else if (assignedToId === null) {
+      updatedAssignedToId = null; // Permite desatribuir a tarefa enviando null
+    }
+
+    // Atualização parcial dinâmica no banco
+    const updatedVuln = await prisma.vulnerability.update({
+      where: { id: vulnerabilityId },
+      data: {
+        status: updatedStatus,
+        assignedToId: updatedAssignedToId,
+        severity: updatedSeverity,
+        title: updatedTitle,
+        description: updatedDescription,
+        recommendation: updatedRecommendation,
+      }
+    });
+
+    // Resolve o erro do prisma.auditLog.create convertendo os dados explicitamente para String
+    const auditDetails = JSON.stringify({ 
+      statusAntigo: String(currentVuln.status), 
+      statusNovo: String(updatedVuln.status), 
+      designado: updatedAssignedToId ? String(updatedAssignedToId) : 'Nenhum' 
+    });
+
+    // Log de Auditoria para Rastreabilidade (Tipado de forma ultra-estrita)
+    await prisma.auditLog.create({
+      data: {
+        userId: userId as string,
+        action: 'VULNERABILITY_UPDATE',
+        target: 'Vulnerability',
+        targetId: vulnerabilityId,
+        details: auditDetails // Agora o tipo é garantido como uma string JSON limpa
+      }
+    });
+
+    return res.json(updatedVuln);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Erro ao atualizar a vulnerabilidade.' });
+  }
+};
+
+// 4. DELETAR VULNERABILIDADE (Apenas Admin/QA)
+export const deleteVulnerability = async (req: Request, res: Response) => {
+  // Fazemos o casting explícito de tipo para 'string'
+  const vulnerabilityId = req.params.id as string;
+
+  // Validação defensiva rápida em runtime
+  if (!vulnerabilityId) {
+    return res.status(400).json({ error: 'ID da vulnerabilidade inválido ou ausente.' });
+  }
+
+  try {
+    // Passamos a variável limpa para o Prisma
+    await prisma.vulnerability.delete({ 
+      where: { id: vulnerabilityId } 
+    });
+    
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Erro ao remover vulnerabilidade.' });
+  }
+};
+
+// Auxiliar para mitigar tipagens parciais do Express Query String
+function queryParamsFix(query: any) {
+  return {
+    status: typeof query.status === 'string' ? (query.status as string) : undefined,
+    severity: typeof query.severity === 'string' ? (query.severity as string) : undefined,
+    projectId: typeof query.projectId === 'string' ? (query.projectId as string) : undefined,
+    tagId: typeof query.tagId === 'string' ? (query.tagId as string) : undefined,
+    assignedToId: typeof query.assignedToId === 'string' ? (query.assignedToId as string) : undefined,
+  };
+}
+</file>
+
+=======
+>>>>>>> 193732668d426b5c256b29c842f764a1dac835cf
 <file path="src/index.ts">
 import express from 'express';
 import cors from 'cors';
@@ -551,6 +784,10 @@ import authRoutes from './routes/auth.routes.js';
 import { authenticateJWT } from './middlewares/auth.middleware.js';
 import { authorizeRoles, checkProjectAccess } from './middlewares/rbac.middleware.js';
 import { Role } from '@prisma/client';
+<<<<<<< HEAD
+import vulnerabilityRoutes from './routes/vulnerability.routes.js';
+=======
+>>>>>>> 193732668d426b5c256b29c842f764a1dac835cf
 
 const app = express();
 
@@ -560,7 +797,11 @@ app.use(express.json());
 
 // 1. Rotas Públicas de Autenticação
 app.use('/api/auth', authRoutes);
+<<<<<<< HEAD
+app.use('/api/vulnerabilities', vulnerabilityRoutes);
+=======
 
+>>>>>>> 193732668d426b5c256b29c842f764a1dac835cf
 // 2. Rotas Protegidas de Projetos e Vulnerabilidades (Seu endpoint antigo refatorado com RBAC real)
 app.get(
   '/api/projects/:projectId/vulnerabilities',
@@ -701,6 +942,41 @@ router.post('/login', login);
 export default router;
 </file>
 
+<<<<<<< HEAD
+<file path="src/routes/vulnerability.routes.ts">
+import { Router } from 'express';
+import { 
+  createVulnerability, 
+  getVulnerabilities, 
+  updateVulnerability, 
+  deleteVulnerability 
+} from '../controllers/vulnerability.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
+import { authorizeRoles, checkProjectAccess } from '../middlewares/rbac.middleware.js';
+import { Role } from '@prisma/client';
+
+const router = Router();
+
+// Todas as rotas de vulnerabilidade exigem autenticação prévia via JWT
+router.use(authenticateJWT);
+
+// LISTAR: Todos os perfis autenticados podem chamar, o isolamento ocorre via Query no controller
+router.get('/', getVulnerabilities);
+
+// CRIAR: Exige associação ao projeto (Se for DEV, checkProjectAccess intercepta o req.body.projectId)
+router.post('/', checkProjectAccess, createVulnerability);
+
+// ATUALIZAR: Permite alteração de status/atribuição (RBAC de escopo validado dentro do Controller)
+router.put('/:id', updateVulnerability);
+
+// DELETAR: Apenas perfis elevados (Admin e QA) possuem permissão destrutiva global
+router.delete('/:id', authorizeRoles(Role.ADMIN, Role.QA), deleteVulnerability);
+
+export default router;
+</file>
+
+=======
+>>>>>>> 193732668d426b5c256b29c842f764a1dac835cf
 <file path="tsconfig.json">
 {
   "compilerOptions": {
