@@ -43,31 +43,27 @@ export default function NovaVulnerabilidade() {
   }, [user]);
 
   // Função assíncrona conectada ao service
+// Função assíncrona conectada ao service
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!projeto) {
-      alert("Por favor, selecione um Projeto Relacionado.");
-      return;
-    }
-
+    
     try {
+      // Mapeia as variáveis individuais do estado para o payload esperado pelo service
       await vulnerabilityService.create({
-        title: titulo,
-        description: descricao,
-        severity: severidade,
-        projetoId: projeto,
-        recomendacao,
-        comentarios,
-        reportadoPor: user?.name || 'QA',
+        title: titulo,              // Alterado de formData.title
+        description: descricao,      // Alterado de formData.description
+        severity: severidade,        // Alterado de formData.severity
+        projetoId: projeto,          // Alterado de formData.projetoId
+        recomendacao: recomendacao,  // Alterado de formData.recomendacao
+        comentarios: comentarios || '', // Alterado de formData.comentarios
+        reportadoPor: user?.name || 'Anónimo',
+        cve: '' // Como o formulário não tem campo de CVE visível, passamos vazio por padrão
       });
 
-      alert('Vulnerabilidade cadastrada com sucesso!');
-      router.push(`/projetos/${projeto}`);
-      
+      // Redireciona para a lista ou limpa os campos após o sucesso
+      router.push('/vulnerabilidades');
     } catch (error) {
-      console.error("Erro ao salvar:", error);
-      alert("Ocorreu um erro ao tentar salvar a vulnerabilidade.");
+      console.error("Erro ao criar vulnerabilidade:", error);
     }
   };
 

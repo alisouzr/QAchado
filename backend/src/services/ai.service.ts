@@ -64,11 +64,11 @@ export class AIService {
   /**
    * 4. DUPLICATE CHECK
    */
-  static async checarDuplicidade(novoTitulo: string, vulnerabilidadesExistentes: string[]): Promise<boolean> {
+static async checarDuplicidade(novoTitulo: string, vulnerabilidadesExistentes: string[]): Promise<boolean> {
     try {
       const response = await axios.post(`${AI_API_URL}/ai/duplicate-check`, {
         title: novoTitulo,
-        existing: vulnerabilidadesExistentes
+        existing_findings: vulnerabilidadesExistentes // -> CORRIGIDO: de 'existing' para 'existing_findings'
       });
       return !!response.data.is_duplicate;
     } catch (error) {

@@ -14,7 +14,10 @@ export interface DeveloperProfile {
 export const userService = {
   async getAvailableDevs(): Promise<DeveloperProfile[]> {
     if (!USE_MOCK) {
-      const response = await fetch(`${API_BASE_URL}/users/devs`);
+      // -> CORRIGIDO: alterado de '/users/devs' para '/usuarios/devs' para bater com o Express
+      const response = await fetch(`${API_BASE_URL}/usuarios/devs`, {
+        credentials: 'include'
+      });
       return await response.json();
     }
 
