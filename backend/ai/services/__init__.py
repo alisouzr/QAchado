@@ -1,0 +1,1 @@
+"""Serviços de IA do QAchado."""

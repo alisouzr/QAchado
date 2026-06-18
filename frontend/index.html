@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QAchado IA</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">QAchado • IA local</p>
+        <h1>Teste a integração da IA sem depender do restante do sistema.</h1>
+        <p class="subcopy">
+          Use esta tela para gerar resumo, remediação e checar possíveis duplicidades usando a API local.
+        </p>
+      </section>
+
+      <section class="panel">
+        <label class="field">
+          <span>Base URL da API</span>
+          <input id="apiBaseUrl" type="text" value="http://127.0.0.1:8000" />
+        </label>
+
+        <label class="field">
+          <span>Achado ou descrição</span>
+          <textarea id="findingText" rows="7" placeholder="Descreva o achado aqui..."></textarea>
+        </label>
+
+        <label class="field">
+          <span>Achados existentes para checagem</span>
+          <textarea id="existingFindings" rows="5" placeholder="Um achado por linha"></textarea>
+        </label>
+
+        <div class="actions">
+          <button id="summarizeBtn" type="button">Gerar resumo</button>
+          <button id="remediationBtn" type="button">Sugerir remediação</button>
+          <button id="duplicateBtn" type="button">Checar duplicidade</button>
+        </div>
+
+        <div class="output">
+          <div class="output-header">
+            <h2>Resultado</h2>
+            <span id="statusBadge">Pronto</span>
+          </div>
+          <pre id="resultBox">A resposta da IA aparecerá aqui.</pre>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

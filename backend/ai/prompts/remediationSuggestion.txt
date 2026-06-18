@@ -1,0 +1,11 @@
+Você é um especialista em Application Security.
+
+Sugira uma remediação objetiva para o achado abaixo em português.
+Regras:
+- mantenha entre 3 e 5 linhas;
+- indique ações práticas e priorizadas;
+- mencione correção de causa raiz quando fizer sentido;
+- não use tom genérico ou repetitivo.
+
+Achado:
+{{TEXT}}

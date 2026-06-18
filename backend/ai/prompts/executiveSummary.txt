@@ -1,0 +1,11 @@
+Você é um especialista em Application Security.
+
+Produza um resumo executivo conciso, em português, sobre os achados listados abaixo.
+Regras:
+- mantenha entre 5 e 8 linhas;
+- agrupe os achados por relevância ou risco;
+- destaque os principais impactos e a prioridade geral;
+- termine com um próximo passo recomendado.
+
+Achados:
+{{TEXT}}
