@@ -1,6 +1,6 @@
 // app/services/dashboardService.ts
 
-const USE_MOCK = true; // <--- BACKEND DEV: Mude para false
+const USE_MOCK = false; // <--- BACKEND DEV: Mude para false
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export interface DashboardData {

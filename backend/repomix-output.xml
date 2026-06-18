@@ -1,0 +1,1704 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+package.json
+prisma/migrations/20260617002502_init/migration.sql
+prisma/migrations/migration_lock.toml
+prisma/schema.prisma
+src/@types/express.d.ts
+src/config/jwt.ts
+src/config/multer.ts
+src/controllers/analytics.controller.ts
+src/controllers/attachment.controller.ts
+src/controllers/auth.controller.ts
+src/controllers/bi.controller.ts
+src/controllers/comment.controller.ts
+src/controllers/report.controller.ts
+src/controllers/vulnerability.controller.ts
+src/index.ts
+src/lib/auth-context.ts
+src/lib/prisma.ts
+src/middlewares/auth.middleware.ts
+src/middlewares/context.middleware.ts
+src/middlewares/rbac.middleware.ts
+src/routes/analytics.routes.ts
+src/routes/auth.routes.ts
+src/routes/bi.routes.ts
+src/routes/report.routes.ts
+src/routes/vulnerability.routes.ts
+src/services/audit.service.ts
+src/services/report.service.ts
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+node_modules
+# Keep environment variables out of version control
+.env
+
+/src/generated/prisma
+</file>
+
+<file path="package.json">
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "docxtemplater": "^3.68.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
+    "pizzip": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.9.3",
+    "@types/pizzip": "^3.0.5",
+    "prisma": "^6.19.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
+</file>
+
+<file path="prisma/migrations/20260617002502_init/migration.sql">
+-- CreateTable
+CREATE TABLE `users` (
+    `id` VARCHAR(191) NOT NULL,
+    `email` VARCHAR(191) NOT NULL,
+    `passwordHash` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `role` ENUM('ADMIN', 'QA', 'DEV') NOT NULL DEFAULT 'DEV',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `users_email_key`(`email`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `projects` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `description` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `projects_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `project_devs` (
+    `projectId` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `assignedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`projectId`, `userId`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `vulnerabilities` (
+    `id` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `description` TEXT NOT NULL,
+    `severity` ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') NOT NULL,
+    `recommendation` TEXT NOT NULL,
+    `status` ENUM('OPEN', 'IN_PROGRESS', 'REMEDIATED', 'FALSE_POSITIVE', 'ACCEPTED_RISK') NOT NULL DEFAULT 'OPEN',
+    `cve` VARCHAR(191) NULL,
+    `cwe` VARCHAR(191) NULL,
+    `owaspTop10` VARCHAR(191) NULL,
+    `projectId` VARCHAR(191) NOT NULL,
+    `reportedById` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `vulnerabilities_projectId_idx`(`projectId`),
+    INDEX `vulnerabilities_status_idx`(`status`),
+    INDEX `vulnerabilities_severity_idx`(`severity`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `tags` (
+    `id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `tags_name_key`(`name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `vulnerability_tags` (
+    `vulnerabilityId` VARCHAR(191) NOT NULL,
+    `tagId` VARCHAR(191) NOT NULL,
+    `assignedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`vulnerabilityId`, `tagId`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `comments` (
+    `id` VARCHAR(191) NOT NULL,
+    `content` TEXT NOT NULL,
+    `vulnerabilityId` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `comments_vulnerabilityId_idx`(`vulnerabilityId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `attachments` (
+    `id` VARCHAR(191) NOT NULL,
+    `fileName` VARCHAR(191) NOT NULL,
+    `fileUrl` VARCHAR(191) NOT NULL,
+    `fileType` VARCHAR(191) NOT NULL,
+    `fileSize` INTEGER NOT NULL,
+    `vulnerabilityId` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `attachments_vulnerabilityId_idx`(`vulnerabilityId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `audit_logs` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NULL,
+    `action` VARCHAR(191) NOT NULL,
+    `target` VARCHAR(191) NOT NULL,
+    `targetId` VARCHAR(191) NULL,
+    `details` TEXT NULL,
+    `ipAddress` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `audit_logs_userId_idx`(`userId`),
+    INDEX `audit_logs_createdAt_idx`(`createdAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `project_devs` ADD CONSTRAINT `project_devs_projectId_fkey` FOREIGN KEY (`projectId`) REFERENCES `projects`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `project_devs` ADD CONSTRAINT `project_devs_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vulnerabilities` ADD CONSTRAINT `vulnerabilities_projectId_fkey` FOREIGN KEY (`projectId`) REFERENCES `projects`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vulnerabilities` ADD CONSTRAINT `vulnerabilities_reportedById_fkey` FOREIGN KEY (`reportedById`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vulnerability_tags` ADD CONSTRAINT `vulnerability_tags_vulnerabilityId_fkey` FOREIGN KEY (`vulnerabilityId`) REFERENCES `vulnerabilities`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `vulnerability_tags` ADD CONSTRAINT `vulnerability_tags_tagId_fkey` FOREIGN KEY (`tagId`) REFERENCES `tags`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `comments` ADD CONSTRAINT `comments_vulnerabilityId_fkey` FOREIGN KEY (`vulnerabilityId`) REFERENCES `vulnerabilities`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `comments` ADD CONSTRAINT `comments_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `attachments` ADD CONSTRAINT `attachments_vulnerabilityId_fkey` FOREIGN KEY (`vulnerabilityId`) REFERENCES `vulnerabilities`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+</file>
+
+<file path="prisma/migrations/migration_lock.toml">
+# Please do not edit this file manually
+# It should be added in your version-control system (e.g., Git)
+provider = "mysql"
+</file>
+
+<file path="prisma/schema.prisma">
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  QA
+  DEV
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Status {
+  OPEN
+  IN_PROGRESS
+  REMEDIATED
+  FALSE_POSITIVE
+  ACCEPTED_RISK
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  role         Role         @default(DEV)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  assignedVulnerabilities Vulnerability[] @relation("AssignedTo")
+  // Relacionamentos
+  projects        ProjectDev[]    // Mapeamento N:M explícito para Devs atribuídos a Projetos
+  vulnerabilities Vulnerability[] @relation("ReportedBy")
+  comments        Comment[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  devs            ProjectDev[] // Usuários DEV que possuem acesso (RBAC)
+  vulnerabilities Vulnerability[]
+
+  @@map("projects")
+}
+
+// Tabela intermediária explícita para o relacionamento N:M de Projetos e Devs
+model ProjectDev {
+  projectId  String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@map("project_devs")
+}
+
+model Vulnerability {
+  id             String   @id @default(uuid())
+  title          String
+  description    String   @db.Text
+  severity       Severity
+  recommendation String   @db.Text
+  status         Status   @default(OPEN)
+  assignedToId   String?   // ID do Dev encarregado da correção
+  assignedTo     User?     @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  // Mapeamentos de Padrões/Identificadores de Segurança
+  cve            String?   // Ex: CVE-2021-34527
+  cwe            String?   // Ex: CWE-79
+  owaspTop10     String?   // Ex: A01:2021-Broken Access Control
+  
+  projectId      String
+  reportedById   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  project    Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reportedBy User                    @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: Restrict)
+  comments   Comment[]
+  attachments Attachment[]
+  tags       VulnerabilitiesOnTags[]
+
+  // Índices para performance nas consultas de listagem e filtros de dashboard
+  @@index([projectId])
+  @@index([status])
+  @@index([severity])
+  @@map("vulnerabilities")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  vulnerabilities VulnerabilitiesOnTags[]
+
+  @@map("tags")
+}
+
+// Tabela intermediária explícita para o relacionamento N:M de Vulnerabilidades e Tags
+model VulnerabilitiesOnTags {
+  vulnerabilityId String
+  tagId           String
+  assignedAt      DateTime @default(now())
+
+  vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  tag           Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([vulnerabilityId, tagId])
+  @@map("vulnerability_tags")
+}
+
+model Comment {
+  id              String        @id @default(uuid())
+  content         String        @db.Text
+  vulnerabilityId String
+  userId          String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relacionamentos
+  vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([vulnerabilityId])
+  @@map("comments")
+}
+
+model Attachment {
+  id              String        @id @default(uuid())
+  fileName        String
+  fileUrl         String        
+  fileType        String
+  fileSize        Int
+  vulnerabilityId String
+  createdAt       DateTime      @default(now())
+
+  // Relacionamentos
+  vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+
+  @@index([vulnerabilityId])
+  @@map("attachments")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  // Nullable caso seja uma ação automatizada do sistema ou pré-autenticação
+  action    String   // Ex: "VULNERABILITY_UPDATE", "USER_ROLE_CHANGE"
+  target    String   // Nome do model afetado (ex: "Vulnerability")
+  targetId  String?  // ID do registro modificado
+  details   String?  @db.Text // Diferencial de payload (Old State vs New State) em formato JSON String
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+</file>
+
+<file path="src/@types/express.d.ts">
+import { Role } from '@prisma/client';
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: string;
+        email: string;
+        role: Role;
+      };
+    }
+  }
+}
+</file>
+
+<file path="src/config/jwt.ts">
+import dotenv from 'dotenv';
+dotenv.config();
+
+export const JWT_CONFIG = {
+  secret: process.env.JWT_SECRET || 'fallback-super-secret-key-change-in-prod',
+  expiresIn: '8h',
+};
+</file>
+
+<file path="src/config/multer.ts">
+import multer from 'multer';
+import path from 'path';
+import crypto from 'crypto';
+import fs from 'fs';
+
+// Garante que a pasta de uploads local exista em runtime
+const uploadFolder = path.resolve('uploads');
+if (!fs.existsSync(uploadFolder)) {
+  fs.mkdirSync(uploadFolder, { recursive: true });
+}
+
+export const MULTER_CONFIG = {
+  directory: uploadFolder,
+  
+  // Armazenamento local (facilmente substituível por S3 Storage no futuro)
+  storage: multer.diskStorage({
+    destination: (req, file, callback) => {
+      callback(null, uploadFolder);
+    },
+    filename: (req, file, callback) => {
+      const fileHash = crypto.randomBytes(10).toString('hex');
+      // Remove espaços para evitar quebras em URLs do navegador
+      const sanitizedOriginalName = file.originalname.replace(/\s+/g, '_');
+      const filename = `${fileHash}-${sanitizedOriginalName}`;
+      
+      callback(null, filename);
+    }
+  }),
+  
+  // Restrições de segurança do upload
+  limits: {
+    fileSize: 5 * 1024 * 1024 // Limite estrito de 5 Megabytes
+  },
+  
+  // Filtro defensivo de extensões/MIME Types
+  fileFilter: (req: any, file: any, callback: multer.FileFilterCallback) => {
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/pjpeg',
+      'image/png',
+      'image/webp',
+      'application/pdf'
+    ];
+    
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Tipo de arquivo inválido. Apenas imagens (JPEG, PNG, WEBP) e PDFs são permitidos.'));
+    }
+  }
+};
+
+export const upload = multer(MULTER_CONFIG);
+</file>
+
+<file path="src/controllers/analytics.controller.ts">
+import type { Request, Response } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { Role, Status } from '@prisma/client';
+
+export const getDashboardStats = async (req: Request, res: Response) => {
+  const { id: userId, role } = req.user!;
+  
+  // Condição base para aplicar o isolamento do RBAC
+  const projectFilter: any = {};
+
+  try {
+    // BARREIRA DO RBAC: Se for DEV, restringe as queries apenas aos projetos alocados
+    if (role === Role.DEV) {
+      const devProjects = await prisma.projectDev.findMany({
+        where: { userId },
+        select: { projectId: true }
+      });
+      const allowedProjectIds = devProjects.map(p => p.projectId);
+      
+      // Se o DEV não estiver em nenhum projeto, retorna dados zerados imediatamente
+      if (allowedProjectIds.length === 0) {
+        return res.json({
+          byStatus: [],
+          bySeverity: [],
+          topVulnerableProjects: [],
+          averageResolutionTimeHours: 0
+        });
+      }
+      
+      projectFilter.projectId = { in: allowedProjectIds };
+    }
+
+    // 1. Agrupamento por Status
+    const byStatus = await prisma.vulnerability.groupBy({
+      by: ['status'],
+      where: projectFilter,
+      _count: { _all: true }
+    });
+
+    // 2. Agrupamento por Severidade
+    const bySeverity = await prisma.vulnerability.groupBy({
+      by: ['severity'],
+      where: projectFilter,
+      _count: { _all: true }
+    });
+
+    // 3. Top Projetos com Mais Vulnerabilidades (Apenas Ativas)
+    const topProjectsRaw = await prisma.vulnerability.groupBy({
+      by: ['projectId'],
+      where: {
+        ...projectFilter,
+        status: { notIn: [Status.REMEDIATED, Status.FALSE_POSITIVE, Status.ACCEPTED_RISK] }
+      },
+      _count: { _all: true },
+      orderBy: {
+        _count: { projectId: 'desc' }
+      },
+      take: 5
+    });
+
+    // Hidratação dos dados dos projetos para incluir o nome visível
+    const topVulnerableProjects = await Promise.all(
+      topProjectsRaw.map(async (item) => {
+        const project = await prisma.project.findUnique({
+          where: { id: item.projectId },
+          select: { name: true }
+        });
+        return {
+          projectId: item.projectId,
+          projectName: project?.name || 'Desconhecido',
+          count: item._count._all
+        };
+      })
+    );
+
+    // 4. Tempo Médio de Resolução (Criação vs Modificação para Remediado via AuditLog)
+    // Procuramos os logs de auditoria que registaram a transição para REMEDIATED
+    const remediationLogs = await prisma.auditLog.findMany({
+      where: {
+        action: 'VULNERABILITY_UPDATE',
+        details: { contains: `"statusNovo":"REMEDIATED"` },
+        targetId: role === Role.DEV ? {
+          in: await prisma.vulnerability.findMany({
+            where: projectFilter,
+            select: { id: true }
+          }).then(list => list.map(v => v.id))
+        } : undefined
+      },
+      select: { targetId: true, createdAt: true }
+    });
+
+    let totalHours = 0;
+    let resolvedCount = 0;
+
+    if (remediationLogs.length > 0) {
+      // Extrai os IDs das vulnerabilidades remediadas detetadas nos logs
+      const targetIds = remediationLogs.map(log => log.targetId).filter((id): id is string => id !== null);
+
+      const vulnerabilitiesCreated = await prisma.vulnerability.findMany({
+        where: { id: { in: targetIds } },
+        select: { id: true, createdAt: true }
+      });
+
+      const creationMap = new Map(vulnerabilitiesCreated.map(v => [v.id, v.createdAt]));
+
+      remediationLogs.forEach(log => {
+        if (log.targetId) {
+          const creationDate = creationMap.get(log.targetId);
+          if (creationDate) {
+            const diffInMs = log.createdAt.getTime() - creationDate.getTime();
+            const diffInHours = diffInMs / (1000 * 60 * 60);
+            totalHours += diffInHours;
+            resolvedCount++;
+          }
+        }
+      });
+    }
+
+    const averageResolutionTimeHours = resolvedCount > 0 ? parseFloat((totalHours / resolvedCount).toFixed(2)) : 0;
+
+    // Resposta Unificada para consumo de gráficos no frontend (ex: Chart.js / Recharts)
+    return res.json({
+      byStatus: byStatus.map(item => ({ status: item.status, count: item._count._all })),
+      bySeverity: bySeverity.map(item => ({ severity: item.severity, count: item._count._all })),
+      topVulnerableProjects,
+      averageResolutionTimeHours
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Erro ao gerar dados analíticos do painel.' });
+  }
+};
+</file>
+
+<file path="src/controllers/attachment.controller.ts">
+import type { Request, Response } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { Role } from '@prisma/client';
+
+export const addAttachmentToVulnerability = async (req: Request, res: Response) => {
+  const { vulnerabilityId } = req.params;
+  const { id: userId, role } = req.user!;
+  const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({ error: 'Nenhum arquivo enviado ou formato rejeitado pelo filtro.' });
+  }
+
+  try {
+    // 1. Valida se a vulnerabilidade existe
+    const vulnerability = await prisma.vulnerability.findUnique({
+      where: { id: vulnerabilityId as string}
+    });
+
+    if (!vulnerability) {
+      return res.status(404).json({ error: 'Vulnerabilidade alvo não encontrada.' });
+    }
+
+    // 2. BARREIRA DO RBAC: Se for DEV, valida se ele está alocado no projeto dessa vulnerabilidade
+    if (role === Role.DEV) {
+      const access = await prisma.projectDev.findUnique({
+        where: {
+          projectId_userId: {
+            projectId: vulnerability.projectId,
+            userId: userId
+          }
+        }
+      });
+
+      if (!access) {
+        return res.status(403).json({ error: 'Acesso negado: Você não possui gerência sobre este escopo.' });
+      }
+    }
+
+    // 3. Persistência dos Metadados do Arquivo no Banco de Dados
+    // Preparado para S3: Altere o 'fileUrl' para 'file.location' quando migrar para o multer-s3
+    const fileUrl = `/uploads/${file.filename}`; 
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        fileName: file.originalname,
+        fileUrl: fileUrl,
+        fileType: file.mimetype,
+        fileSize: file.size,
+        vulnerabilityId: vulnerabilityId as string
+      }
+    });
+
+    // 4. Registro no rastro imutável de Auditoria do sistema
+    await prisma.auditLog.create({
+      data: {
+        userId: userId,
+        action: 'ATTACHMENT_CREATE',
+        target: 'Attachment',
+        targetId: attachment.id,
+        details: `Anexo "${file.originalname}" adicionado à vulnerabilidade: ${vulnerabilityId}`
+      }
+    });
+
+    return res.status(201).json(attachment);
+
+  } catch (error) {
+    console.error('Erro ao salvar anexo:', error);
+    return res.status(500).json({ error: 'Erro crítico interno ao processar e salvar evidência.' });
+  }
+};
+</file>
+
+<file path="src/controllers/auth.controller.ts">
+import type { Request, Response } from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { prisma } from '../lib/prisma.js';
+import { JWT_CONFIG } from '../config/jwt.js';
+
+export const login = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
+  }
+
+  try {
+    // Busca usuário incluindo a role
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciais inválidas.' });
+    }
+
+    // Valida o hash da senha armazenada com bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      // Criação de Audit Log para tentativas falhas (Segurança/Compliance)
+      await prisma.auditLog.create({
+        data: {
+          action: 'LOGIN_FAILED',
+          target: 'User',
+          targetId: user.id,
+          details: `Tentativa falha de login para o email: ${email}`,
+        }
+      });
+      return res.status(401).json({ error: 'Credenciais inválidas.' });
+    }
+
+    // Geração do Token JWT com Payload adequado para o RBAC
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      },
+      JWT_CONFIG.secret,
+      { expiresIn: JWT_CONFIG.expiresIn }
+    );
+
+    // Criação de Audit Log de sucesso
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'LOGIN_SUCCESS',
+        target: 'User',
+        targetId: user.id,
+      }
+    });
+
+    // Retorna o token e dados básicos de perfil (nunca retorne a senha)
+    return res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Erro no login:', error);
+    return res.status(500).json({ error: 'Erro interno do servidor durante a autenticação.' });
+  }
+};
+</file>
+
+<file path="src/controllers/bi.controller.ts">
+import type { Request, Response } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { Role } from '@prisma/client';
+
+export const getVulnerabilityRecidivismReport = async (req: Request, res: Response) => {
+  const { id: userId, role } = req.user!;
+
+  try {
+    const whereClause: any = {
+      assignedToId: { not: null }, // Foco em vulnerabilidades vinculadas a um Dev
+      OR: [
+        { cwe: { not: null } },
+        { owaspTop10: { not: null } }
+      ]
+    };
+
+    // BARREIRA DO RBAC SÊNIOR: Se for DEV, o relatório de BI restringe-se unicamente ao seu histórico pessoal
+    if (role === Role.DEV) {
+      whereClause.assignedToId = userId;
+    }
+
+    // Busca os dados necessários para o processamento de BI analítico
+    const vulnerabilities = await prisma.vulnerability.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        cwe: true,
+        owaspTop10: true,
+        createdAt: true,
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        project: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // Estrutura de suporte para processar as reincidências
+    // Chave: DevId_FamiliaVulnerabilidade
+    const devFamilyHistory = new Map<string, number>();
+    
+    // Formato Tabular Plano (Flat JSON Array) ideal para PowerBI / Metabase
+    const tabularData = vulnerabilities.map((vuln) => {
+      const devId = vuln.assignedTo?.id || 'unknown';
+      const devName = vuln.assignedTo?.name || 'Não Atribuído';
+      
+      // Identifica a família do achado baseado prioritariamente no CWE ou OWASP Top 10
+      const vulnFamily = vuln.cwe || vuln.owaspTop10 || 'Outros';
+      
+      const trackingKey = `${devId}_${vulnFamily}`;
+      
+      // Recupera quantas vezes o dev já cometeu um erro dessa mesma família antes deste registro
+      const ocorrenciasAnteriores = devFamilyHistory.get(trackingKey) || 0;
+      
+      // Incrementa o histórico para as próximas iterações
+      devFamilyHistory.set(trackingKey, ocorrenciasAnteriores + 1);
+      
+      const dataCriacao = new Date(vuln.createdAt);
+      
+      // Montagem do registro denormalizado (Padrão Data Warehouse / Star Schema)
+      return {
+        vulnerabilidade_id: vuln.id,
+        projeto_nome: vuln.project.name,
+        desenvolvedor_id: devId,
+        desenvolvedor_nome: devName,
+        desenvolvedor_email: vuln.assignedTo?.email || 'N/A',
+        familia_vulnerabilidade: vulnFamily,
+        ano_mes: `${dataCriacao.getFullYear()}-${String(dataCriacao.getMonth() + 1).padStart(2, '0')}`,
+        data_registro: dataCriacao.toISOString().split('T')[0],
+        ocorrencia_sequencial: ocorrenciasAnteriores + 1,
+        // Define se este registro já configura uma reincidência direta (segundo erro ou mais)
+        eh_reincidencia: ocorrenciasAnteriores > 0 ? 1 : 0
+      };
+    });
+
+    // Retorna a estrutura limpa e direta
+    return res.json(tabularData);
+
+  } catch (error) {
+    console.error('Erro na extração de dados do Módulo BI:', error);
+    return res.status(500).json({ error: 'Erro interno ao processar cubo de dados analíticos.' });
+  }
+};
+</file>
+
+<file path="src/controllers/comment.controller.ts">
+import type { Request, Response } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { Role } from '@prisma/client';
+
+export const addCommentToVulnerability = async (req: Request, res: Response) => {
+  const { vulnerabilityId } = req.params as { vulnerabilityId: string };
+  const { content } = req.body;
+  const { id: userId, role } = req.user!;
+
+  if (!content || content.trim() === '') {
+    return res.status(400).json({ error: 'O conteúdo do comentário não pode ser vazio.' });
+  }
+
+  try {
+    // 1. Valida se a vulnerabilidade existe
+    const vulnerability = await prisma.vulnerability.findUnique({
+      where: { id: vulnerabilityId }
+    });
+
+    if (!vulnerability) {
+      return res.status(404).json({ error: 'Vulnerabilidade não encontrada.' });
+    }
+
+    // 2. Barreira do RBAC para DEV
+    if (role === Role.DEV) {
+      const access = await prisma.projectDev.findUnique({
+        where: {
+          projectId_userId: {
+            projectId: vulnerability.projectId,
+            userId: userId
+          }
+        }
+      });
+
+      if (!access) {
+        return res.status(403).json({ error: 'Acesso negado: Você não faz parte deste projeto.' });
+      }
+    }
+
+    // 3. Cria o comentário
+    const comment = await prisma.comment.create({
+      data: {
+        content: content.trim(),
+        vulnerabilityId: vulnerabilityId,
+        userId: userId
+      },
+      include: {
+        user: {
+          select: { name: true, email: true, role: true }
+        }
+      }
+    });
+
+    return res.status(201).json(comment);
+
+  } catch (error) {
+    console.error('Erro ao adicionar comentário:', error);
+    return res.status(500).json({ error: 'Erro interno ao salvar comentário.' });
+  }
+};
+</file>
+
+<file path="src/controllers/report.controller.ts">
+import type { Request, Response } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { Role } from '@prisma/client';
+import { generateMarkdownReport, generateDocxReport } from '../services/report.service.js';
+
+export const exportVulnerabilityReport = async (req: Request, res: Response) => {
+  const { id: userId, role } = req.user!;
+  const format = req.query.format as string; // 'markdown' ou 'docx'
+  const projectId = req.query.projectId as string | undefined;
+
+  if (format !== 'markdown' && format !== 'docx') {
+    return res.status(400).json({ error: "Formato inválido. Use '?format=markdown' ou '?format=docx'" });
+  }
+
+  try {
+    const whereClause: any = {};
+    if (projectId) whereClause.projectId = projectId;
+
+    // BARREIRA DO RBAC: Filtro estrito caso a role seja DEV
+    if (role === Role.DEV) {
+      const userProjects = await prisma.projectDev.findMany({
+        where: { userId },
+        select: { projectId: true }
+      });
+      const allowedIds = userProjects.map(p => p.projectId);
+
+      if (projectId && !allowedIds.includes(projectId)) {
+        return res.status(403).json({ error: 'Acesso negado ao escopo deste projeto.' });
+      }
+      whereClause.projectId = { in: allowedIds };
+    }
+
+    // Busca os dados consolidados do Prisma carregando o relacionamento com o Projeto
+    const vulnerabilities = await prisma.vulnerability.findMany({
+      where: whereClause,
+      include: { project: { select: { name: true } } },
+      orderBy: { severity: 'desc' }
+    });
+
+    // Mapeia para a estrutura homogênea que o serviço de relatórios espera
+    const formattedData = vulnerabilities.map(v => ({
+      title: v.title,
+      description: v.description,
+      severity: v.severity,
+      recommendation: v.recommendation,
+      status: v.status,
+      cve: v.cve,
+      projectName: v.project.name
+    }));
+
+    // Despacha com base no formato requisitado
+    if (format === 'markdown') {
+      const mdContent = generateMarkdownReport(formattedData);
+      
+      // Configura os headers para forçar o download do arquivo de texto
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="vulnerability_report.md"');
+      return res.send(mdContent);
+    } 
+    
+    if (format === 'docx') {
+      const docxBuffer = generateDocxReport(formattedData);
+      
+      // Configura os headers para transferência de stream binária de arquivos do Microsoft Word
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', 'attachment; filename="vulnerability_report.docx"');
+      return res.send(docxBuffer);
+    }
+
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).json({ error: error.message || 'Erro crítico ao processar exportação de relatório.' });
+  }
+};
+</file>
+
+<file path="src/controllers/vulnerability.controller.ts">
+import type { Request, Response } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { Severity, Status, Role } from '@prisma/client';
+
+// 1. CRIAR VULNERABILIDADE
+export const createVulnerability = async (req: Request, res: Response) => {
+  const { title, description, severity, recommendation, projectId, cve, cwe, owaspTop10, tagIds } = req.body;
+  const reporterId = req.user!.id;
+
+  if (!title || !description || !severity || !recommendation || !projectId) {
+    return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+  }
+
+  try {
+    const vulnerability = await prisma.vulnerability.create({
+      data: {
+        title,
+        description,
+        severity: severity as Severity,
+        recommendation,
+        projectId,
+        reportedById: reporterId,
+        cve,
+        cwe,
+        owaspTop10,
+        // Cria os vínculos N:M na tabela intermediária se houver tags
+        tags: tagIds && Array.isArray(tagIds) ? {
+          create: tagIds.map((tagId: string) => ({ tagId }))
+        } : undefined
+      },
+      include: { tags: { include: { tag: true } } }
+    });
+
+    // Log de Auditoria
+    await prisma.auditLog.create({
+      data: {
+        userId: reporterId,
+        action: 'VULNERABILITY_CREATE',
+        target: 'Vulnerability',
+        targetId: vulnerability.id,
+        details: `Vulnerabilidade "${title}" reportada no projeto ${projectId}.`
+      }
+    });
+
+    return res.status(201).json(vulnerability);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Erro ao registrar vulnerabilidade.' });
+  }
+};
+
+// 2. LISTAR VULNERABILIDADES COM FILTROS AVANÇADOS E ISOLAMENTO DE DEV
+export const getVulnerabilities = async (req: Request, res: Response) => {
+  const { status, severity, projectId, tagId, assignedToId } = queryParamsFix(req.query);
+  const { id: userId, role } = req.user!;
+
+  // Construção do objeto de filtros dinâmicos do Prisma (Where)
+  const whereClause: any = {};
+
+  if (status) whereClause.status = status as Status;
+  if (severity) whereClause.severity = severity as Severity;
+  if (projectId) whereClause.projectId = projectId;
+  if (assignedToId) whereClause.assignedToId = assignedToId;
+  
+  // Filtro por Tags (Relacionamento N:M)
+  if (tagId) {
+    whereClause.tags = {
+      some: { tagId: tagId }
+    };
+  }
+
+  // BARREIRA DO RBAC: Se for DEV, ele só pode ver registros dos seus projetos atribuídos
+  if (role === Role.DEV) {
+    const userProjects = await prisma.projectDev.findMany({
+      where: { userId },
+      select: { projectId: true }
+    });
+    const allowedProjectIds = userProjects.map(p => p.projectId);
+
+    if (projectId && !allowedProjectIds.includes(projectId)) {
+      return res.status(403).json({ error: 'Acesso negado: Você não possui acesso a este projeto.' });
+    }
+
+    // Injeta a restrição global de escopo caso ele não tenha filtrado por um projeto específico
+    whereClause.projectId = { in: allowedProjectIds };
+  }
+
+  try {
+    const vulnerabilities = await prisma.vulnerability.findMany({
+      where: whereClause,
+      include: {
+        project: { select: { id: true, name: true } },
+        reportedBy: { select: { id: true, name: true, email: true } },
+        tags: { include: { tag: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return res.json(vulnerabilities);
+  } catch (error) {
+    return res.status(500).json({ error: 'Erro ao buscar listagem de vulnerabilidades.' });
+  }
+};
+
+export const updateVulnerability = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, assignedToId, severity, title, description, recommendation } = req.body;
+  const { id: userId, role } = req.user!;
+
+  // Garante que o ID da URL seja tratado como string única
+  const vulnerabilityId = id as string;
+
+  try {
+    // Busca o registro atual para validar escopo do DEV
+    const currentVuln = await prisma.vulnerability.findUnique({ 
+      where: { id: vulnerabilityId } 
+    });
+    
+    if (!currentVuln) {
+      return res.status(404).json({ error: 'Vulnerabilidade não encontrada.' });
+    }
+
+    // BARREIRA DO RBAC: Se for DEV, valida se o achado pertence a um de seus projetos
+    if (role === Role.DEV) {
+      const access = await prisma.projectDev.findUnique({
+        where: { projectId_userId: { projectId: currentVuln.projectId, userId } }
+      });
+      if (!access) {
+        return res.status(403).json({ error: 'Acesso negado: Este achado pertence a um projeto fora do seu escopo.' });
+      }
+    }
+
+    // Tratamento estrito de tipos para evitar o erro 'string | string[]' no Prisma
+    const updatedStatus = typeof status === 'string' ? (status as Status) : undefined;
+    const updatedSeverity = typeof severity === 'string' ? (severity as Severity) : undefined;
+    const updatedTitle = typeof title === 'string' ? (title as string) : undefined;
+    const updatedDescription = typeof description === 'string' ? (description as string) : undefined;
+    const updatedRecommendation = typeof recommendation === 'string' ? (recommendation as string) : undefined;
+    
+    // Resolve o erro do 'assignedToId' limpando a possibilidade de array
+    let updatedAssignedToId: string | null | undefined = undefined;
+    if (typeof assignedToId === 'string') {
+      updatedAssignedToId = assignedToId as string;
+    } else if (assignedToId === null) {
+      updatedAssignedToId = null; // Permite desatribuir a tarefa enviando null
+    }
+
+    // Atualização parcial dinâmica no banco
+    const updatedVuln = await prisma.vulnerability.update({
+      where: { id: vulnerabilityId },
+      data: {
+        status: updatedStatus,
+        assignedToId: updatedAssignedToId,
+        severity: updatedSeverity,
+        title: updatedTitle,
+        description: updatedDescription,
+        recommendation: updatedRecommendation,
+      }
+    });
+
+    // Resolve o erro do prisma.auditLog.create convertendo os dados explicitamente para String
+    const auditDetails = JSON.stringify({ 
+      statusAntigo: String(currentVuln.status), 
+      statusNovo: String(updatedVuln.status), 
+      designado: updatedAssignedToId ? String(updatedAssignedToId) : 'Nenhum' 
+    });
+
+    // Log de Auditoria para Rastreabilidade (Tipado de forma ultra-estrita)
+    await prisma.auditLog.create({
+      data: {
+        userId: userId as string,
+        action: 'VULNERABILITY_UPDATE',
+        target: 'Vulnerability',
+        targetId: vulnerabilityId,
+        details: auditDetails // Agora o tipo é garantido como uma string JSON limpa
+      }
+    });
+
+    return res.json(updatedVuln);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Erro ao atualizar a vulnerabilidade.' });
+  }
+};
+
+// 4. DELETAR VULNERABILIDADE (Apenas Admin/QA)
+export const deleteVulnerability = async (req: Request, res: Response) => {
+  // Fazemos o casting explícito de tipo para 'string'
+  const vulnerabilityId = req.params.id as string;
+
+  // Validação defensiva rápida em runtime
+  if (!vulnerabilityId) {
+    return res.status(400).json({ error: 'ID da vulnerabilidade inválido ou ausente.' });
+  }
+
+  try {
+    // Passamos a variável limpa para o Prisma
+    await prisma.vulnerability.delete({ 
+      where: { id: vulnerabilityId } 
+    });
+    
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Erro ao remover vulnerabilidade.' });
+  }
+};
+
+// Auxiliar para mitigar tipagens parciais do Express Query String
+function queryParamsFix(query: any) {
+  return {
+    status: typeof query.status === 'string' ? (query.status as string) : undefined,
+    severity: typeof query.severity === 'string' ? (query.severity as string) : undefined,
+    projectId: typeof query.projectId === 'string' ? (query.projectId as string) : undefined,
+    tagId: typeof query.tagId === 'string' ? (query.tagId as string) : undefined,
+    assignedToId: typeof query.assignedToId === 'string' ? (query.assignedToId as string) : undefined,
+  };
+}
+</file>
+
+<file path="src/index.ts">
+import express from 'express';
+import cors from 'cors';
+import authRoutes from './routes/auth.routes.js';
+import vulnerabilityRoutes from './routes/vulnerability.routes.js';
+import reportRoutes from './routes/report.routes.js';
+import biRoutes from './routes/bi.routes.js';
+import path from 'path';
+
+import { injectAuthContext } from './middlewares/context.middleware.js';
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.use('/api/auth', authRoutes);
+app.use(injectAuthContext);
+app.use('/api/bi', biRoutes);
+app.use('/api/vulnerabilities', vulnerabilityRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/uploads', express.static(path.resolve('uploads')));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`[SERVER] Security Management API rodando na porta ${PORT}`));
+</file>
+
+<file path="src/lib/auth-context.ts">
+import { AsyncLocalStorage } from 'async_hooks';
+
+interface UserContext {
+  userId: string;
+}
+
+export const authLocalStorage = new AsyncLocalStorage<UserContext>();
+</file>
+
+<file path="src/lib/prisma.ts">
+import { PrismaClient } from '@prisma/client';
+import { authLocalStorage } from './auth-context.js';
+
+const basePrisma = new PrismaClient();
+
+export const prisma = basePrisma.$extends({
+  query: {
+    vulnerability: {
+      async update({ model, operation, args, query }) {
+        const context = authLocalStorage.getStore();
+        const userId = context?.userId || 'SYSTEM'; // Fallback se alterado por script/cron
+
+        // 1. Busca o estado atual antes de atualizar para saber o status antigo
+        const previousState = await basePrisma.vulnerability.findUnique({
+          where: { id: args.where.id },
+          select: { status: true }
+        });
+
+        // 2. Executa a atualização original
+        const result = await query(args);
+
+        // 3. Verifica se houve mudança de status
+        if (previousState && previousState.status !== result.status) {
+          await basePrisma.auditLog.create({
+            data: {
+              userId: userId,
+              action: 'VULNERABILITY_STATUS_CHANGE',
+              target: 'Vulnerability',
+              targetId: result.id,
+              details: `Status alterado de "${previousState.status}" para "${result.status}"`
+            }
+          });
+        }
+
+        return result;
+      }
+    }
+  }
+});
+</file>
+
+<file path="src/middlewares/auth.middleware.ts">
+import type { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { JWT_CONFIG } from '../config/jwt.js';
+import { Role } from '@prisma/client';
+
+interface JwtPayload {
+  id: string;
+  email: string;
+  role: Role;
+}
+
+export const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token de autenticação não fornecido ou inválido.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, JWT_CONFIG.secret) as JwtPayload;
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+    };
+    return next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Token inválido ou expirado.' });
+  }
+};
+</file>
+
+<file path="src/middlewares/context.middleware.ts">
+import type { Request, Response, NextFunction } from 'express';
+import { authLocalStorage } from '../lib/auth-context.js';
+
+export const injectAuthContext = (req: Request, res: Response, next: NextFunction) => {
+  if (req.user?.id) {
+    // Isola o ID do usuário para ser lido pela extensão do Prisma nesta requisição
+    authLocalStorage.run({ userId: req.user.id }, () => {
+      next();
+    });
+  } else {
+    next();
+  }
+};
+</file>
+
+<file path="src/middlewares/rbac.middleware.ts">
+import type { Request, Response, NextFunction } from 'express';
+import { Role } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
+
+// 1. Valida se a Role do usuário está na lista de permissões estáticas da rota
+export const authorizeRoles = (...allowedRoles: Role[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Usuário não autenticado.' });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Acesso negado: privilégios insuficientes.' });
+    }
+
+    return next();
+  };
+};
+
+// 2. Middleware dinâmico para validação granular do acesso de DEV a projetos específicos
+export const checkProjectAccess = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Usuário não autenticado.' });
+  }
+
+  const { id: userId, role } = req.user;
+  
+  // Regra de Negócio: Admins e QAs têm acesso global irrestrito
+  if (role === Role.ADMIN || role === Role.QA) {
+    return next();
+  }
+
+  // O ID do projeto pode vir dos parâmetros da URL (:projectId ou :id) ou do corpo da requisição
+  const projectId = req.params.projectId || req.params.id || req.body.projectId;
+
+  if (!projectId) {
+    return res.status(400).json({ error: 'Identificador do projeto não mapeado na requisição.' });
+  }
+
+  try {
+    // Verifica se o DEV está explicitamente associado à tabela pivot do projeto
+    const membership = await prisma.projectDev.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Acesso negado: Você não está alocado a este projeto.' });
+    }
+
+    return next();
+  } catch (error) {
+    return res.status(500).json({ error: 'Erro interno ao validar permissões do projeto.' });
+  }
+};
+</file>
+
+<file path="src/routes/analytics.routes.ts">
+import { Router } from 'express';
+import { getDashboardStats } from '../controllers/analytics.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
+
+const router = Router();
+
+// Endpoint analítico centralizado e protegido por sessão ativa
+router.get('/dashboard', authenticateJWT, getDashboardStats);
+
+export default router;
+</file>
+
+<file path="src/routes/auth.routes.ts">
+import { Router } from 'express';
+import { login } from '../controllers/auth.controller.js';
+
+const router = Router();
+
+router.post('/login', login);
+
+export default router;
+</file>
+
+<file path="src/routes/bi.routes.ts">
+import { Router } from 'express';
+import { getVulnerabilityRecidivismReport } from '../controllers/bi.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
+
+const router = Router();
+
+// Endpoint de integração corporativa
+router.get('/trends/recidivism', authenticateJWT, getVulnerabilityRecidivismReport);
+
+export default router;
+</file>
+
+<file path="src/routes/report.routes.ts">
+import { Router } from 'express';
+import { exportVulnerabilityReport } from '../controllers/report.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
+
+const router = Router();
+
+router.get('/export', authenticateJWT, exportVulnerabilityReport);
+
+export default router;
+</file>
+
+<file path="src/routes/vulnerability.routes.ts">
+import { Router } from 'express';
+import { 
+  createVulnerability, 
+  getVulnerabilities, 
+  updateVulnerability, 
+  deleteVulnerability 
+} from '../controllers/vulnerability.controller.js';
+import { authenticateJWT } from '../middlewares/auth.middleware.js';
+import { authorizeRoles, checkProjectAccess } from '../middlewares/rbac.middleware.js';
+import { Role } from '@prisma/client';
+import { upload } from '../config/multer.js';
+import { addAttachmentToVulnerability } from '../controllers/attachment.controller.js';
+import { addCommentToVulnerability } from '../controllers/comment.controller.js';
+
+const router = Router();
+
+router.use(authenticateJWT);
+router.get('/', getVulnerabilities);
+router.post('/', checkProjectAccess, createVulnerability);
+router.put('/:id', updateVulnerability);
+router.delete('/:id', authorizeRoles(Role.ADMIN, Role.QA), deleteVulnerability);
+router.post('/:vulnerabilityId/comments', addCommentToVulnerability);
+router.post(
+  '/:vulnerabilityId/attachments', 
+  upload.single('file'), 
+  addAttachmentToVulnerability
+);
+
+export default router;
+</file>
+
+<file path="src/services/audit.service.ts">
+import { prisma } from '../lib/prisma.js';
+
+export const AuditService = {
+  /**
+   * Registra uma ação de exportação de relatório no rastro de auditoria
+   */
+  async logExport(userId: string, reportType: 'DOCX' | 'PDF' | 'BI_FLAT', details: string) {
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: userId,
+          action: 'VULNERABILITY_EXPORT',
+          target: 'Report',
+          details: `Exportação do tipo [${reportType}] realizada. ${details}`
+        }
+      });
+    } catch (error) {
+      // Falhas no log de auditoria não devem quebrar a experiência do usuário final, mas devem ser monitoradas
+      console.error('Falha crítica ao gravar log de auditoria de exportação:', error);
+    }
+  }
+};
+</file>
+
+<file path="src/services/report.service.ts">
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import { Status } from '@prisma/client';
+
+// Resolução de caminhos no ecossistema ESM do Node
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Tipagem para os dados estruturados da vulnerabilidade injetados no gerador
+interface ReportData {
+  title: string;
+  description: string;
+  severity: string;
+  recommendation: string;
+  status: Status;
+  cve: string | null;
+  projectName: string;
+}
+
+/**
+ * 1. Exportação Básica em formato Markdown
+ */
+export const generateMarkdownReport = (vulns: ReportData[]): string => {
+  let md = `# Relatório Analítico de Vulnerabilidades\n`;
+  md += `*Gerado automaticamente pelo sistema em: ${new Date().toLocaleDateString('pt-BR')}*\n\n`;
+  md += `---\n\n`;
+
+  if (vulns.length === 0) {
+    md += `Nenhum achado de segurança registrado para os filtros selecionados.\n`;
+    return md;
+  }
+
+  vulns.forEach((vuln, index) => {
+    md += `## ${index + 1}. [${vuln.severity}] ${vuln.title}\n`;
+    md += `- **Projeto:** ${vuln.projectName}\n`;
+    md += `- **Status Atual:** ${vuln.status}\n`;
+    md += `- **Identificador (CVE):** ${vuln.cve || 'N/A'}\n\n`;
+    md += `### Descrição Técnico-Operacional\n${vuln.description}\n\n`;
+    md += `### Plano de Recomendação / Remediação\n${vuln.recommendation}\n\n`;
+    md += `---\n\n`;
+  });
+
+  return md;
+};
+
+/**
+ * 2. Compilação de Template .docx usando Docxtemplater
+ */
+export const generateDocxReport = (vulns: ReportData[]): Buffer => {
+  // O template físico padrão deve ficar armazenado em: backend/src/templates/vuln_template.docx
+  const templatePath = path.resolve(__dirname, '../templates/vuln_template.docx');
+
+  if (!fs.existsSync(templatePath)) {
+    throw new Error('Template básico de relatório .docx não encontrado no servidor.');
+  }
+
+  // Lê o arquivo binário do template Word
+  const content = fs.readFileSync(templatePath, 'binary');
+  
+  // Instancia o PizZip para descompactar o .docx (que por baixo dos panos é um conjunto de XMLs)
+  const zip = new PizZip(content);
+  
+  // Carrega o documento no motor do docxtemplater
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+  });
+
+  // Mapeia e higieniza os dados do banco para casar com as chaves que o usuário colocou no Word
+  // No seu arquivo Word, se você usar {#vulnerabilidades} ... {/vulnerabilidades} ele criará uma tabela/lista repetitiva
+  const templatePayload = {
+    data_geracao: new Date().toLocaleDateString('pt-BR'),
+    total_achados: vulns.length,
+    vulnerabilidades: vulns.map(v => ({
+      titulo_vuln: v.title,
+      projeto: v.projectName,
+      severidade: v.severity,
+      status: v.status,
+      cve: v.cve || 'N/A',
+      descricao: v.description,
+      recomendacao: v.recommendation
+    }))
+  };
+
+  // Injeta os dados nas tags do arquivo .docx
+  doc.render(templatePayload);
+
+  // Gera e compila o buffer final do Word modificado
+  const outputBuffer = doc.getZip().generate({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+  });
+
+  return outputBuffer;
+};
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "module": "nodenext",
+    "target": "esnext",
+    "strict": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "moduleDetection": "force"
+  },
+  "include": ["src/**/*"]
+}
+</file>
+
+</files>
