@@ -43,6 +43,42 @@ def _render_prompt(template: str, text: str) -> str:
     return template.replace("{{TEXT}}", text.strip())
 
 
+def compose_finding_text(
+    *,
+    title: str | None = None,
+    severity: str | None = None,
+    description: str | None = None,
+    evidence: str | None = None,
+    recommendation: str | None = None,
+    impact: str | None = None,
+    status: str | None = None,
+    extra_notes: str | None = None,
+    fallback_text: str | None = None,
+) -> str:
+    parts: list[str] = []
+
+    def add(label: str, value: str | None) -> None:
+        if value and value.strip():
+            parts.append(f"{label}: {value.strip()}")
+
+    add("Título", title)
+    add("Severidade", severity)
+    add("Status", status)
+    add("Descrição", description)
+    add("Impacto", impact)
+    add("Evidência", evidence)
+    add("Recomendação atual", recommendation)
+    add("Observações", extra_notes)
+
+    if parts:
+        return "\n".join(parts)
+
+    if fallback_text and fallback_text.strip():
+        return fallback_text.strip()
+
+    raise ValueError("É necessário informar texto ou contexto do achado.")
+
+
 def _post_json(url: str, payload: dict, timeout: float) -> dict:
     body = json.dumps(payload).encode("utf-8")
     req = request.Request(

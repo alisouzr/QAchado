@@ -48,6 +48,20 @@ def _read_json(body: bytes) -> dict[str, Any]:
     return data
 
 
+def _compose_finding_text(payload: dict[str, Any], *, fallback_text: str | None = None) -> str:
+    return ai_service.compose_finding_text(
+        title=payload.get("title"),
+        severity=payload.get("severity"),
+        description=payload.get("description"),
+        evidence=payload.get("evidence"),
+        recommendation=payload.get("recommendation"),
+        impact=payload.get("impact"),
+        status=payload.get("status"),
+        extra_notes=payload.get("extra_notes"),
+        fallback_text=fallback_text or payload.get("text"),
+    )
+
+
 def handle_request(method: str, path: str, body: bytes = b"") -> tuple[int, dict[str, str], bytes]:
     parsed_path = urlparse(path).path.rstrip("/") or "/"
 
@@ -67,16 +81,12 @@ def handle_request(method: str, path: str, body: bytes = b"") -> tuple[int, dict
 
     try:
         if parsed_path == "/ai/summarize":
-            text = payload.get("text", "")
-            if not isinstance(text, str) or not text.strip():
-                return _error(HTTPStatus.BAD_REQUEST, "O campo 'text' é obrigatório.")
+            text = _compose_finding_text(payload)
             summary = ai_service.summarize(text)
             return _json_response(HTTPStatus.OK, {"summary": summary})
 
         if parsed_path == "/ai/remediation":
-            text = payload.get("text", "")
-            if not isinstance(text, str) or not text.strip():
-                return _error(HTTPStatus.BAD_REQUEST, "O campo 'text' é obrigatório.")
+            text = _compose_finding_text(payload)
             suggestion = ai_service.suggest_remediation(text)
             return _json_response(HTTPStatus.OK, {"remediation": suggestion})
 
@@ -88,10 +98,8 @@ def handle_request(method: str, path: str, body: bytes = b"") -> tuple[int, dict
             return _json_response(HTTPStatus.OK, {"executive_summary": summary})
 
         if parsed_path == "/ai/duplicate-check":
-            candidate = payload.get("candidate", "")
+            candidate = _compose_finding_text(payload, fallback_text=payload.get("candidate"))
             existing_findings = payload.get("existing_findings", [])
-            if not isinstance(candidate, str) or not candidate.strip():
-                return _error(HTTPStatus.BAD_REQUEST, "O campo 'candidate' é obrigatório.")
             if not isinstance(existing_findings, list):
                 return _error(HTTPStatus.BAD_REQUEST, "O campo 'existing_findings' precisa ser uma lista.")
             match = ai_service.check_duplicate(candidate, existing_findings)

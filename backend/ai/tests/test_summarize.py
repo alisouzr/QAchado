@@ -25,6 +25,20 @@ class SummarizeServiceTests(unittest.TestCase):
         self.assertIn("Falha de autenticação sem rate limit", captured["payload"]["prompt"])
         self.assertEqual(captured["timeout"], 12)
 
+    def test_compose_finding_text_uses_structured_fields(self) -> None:
+        text = ai_service.compose_finding_text(
+            title="Falha de autenticação",
+            severity="Alta",
+            description="Sem rate limit no login",
+            impact="Tentativas ilimitadas",
+            fallback_text="texto antigo",
+        )
+
+        self.assertIn("Título: Falha de autenticação", text)
+        self.assertIn("Severidade: Alta", text)
+        self.assertIn("Descrição: Sem rate limit no login", text)
+        self.assertIn("Impacto: Tentativas ilimitadas", text)
+
     def test_check_duplicate_uses_similarity_score(self) -> None:
         duplicate = ai_service.check_duplicate(
             "SQL injection no campo de login",
